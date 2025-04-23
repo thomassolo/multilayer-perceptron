@@ -2,48 +2,42 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-df = pd.read_csv("data.csv")
+# Read the CSV without headers and assign column names
+# Assuming 2nd column is diagnosis and 1st is ID
+column_names = ['id', 'diagnosis'] + [f'feature_{i}' for i in range(30)]
+df = pd.read_csv("data.csv", header=None, names=column_names)
 
 print("Aperçu des données :")
-print(df.head())
-print("\nNoms des colonnes disponibles:")
+print("\nNoms des colonnes assignées:")
 print(df.columns.tolist())
 
-diagnosis_column = None
-for possible_name in ['diagnosis', 'label', 'target', 'class', 'result']:
-    if possible_name in df.columns:
-        diagnosis_column = possible_name
-        break
+# Remove ID column
+df.drop(columns=['id'], inplace=True)
 
-if diagnosis_column:
-    print(f"Colonne de diagnostic trouvée: '{diagnosis_column}'")
-    
-    if 'id' in df.columns:
-        df.drop(columns=['id'], inplace=True)
+# Convert diagnosis column: B -> 0, M -> 1
+df['diagnosis'] = df['diagnosis'].map({'B': 0, 'M': 1})
 
-    # 4. Convertir la colonne de diagnostic en 0 (Bénin) et 1 (Malin)
-    df[diagnosis_column] = df[diagnosis_column].map({'B': 0, 'M': 1})
+# Split features and target
+y = df['diagnosis']
+X = df.drop(columns=['diagnosis'])
 
-    y = df[diagnosis_column]
-    X = df.drop(columns=[diagnosis_column])
+# Scale features
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
 
-    scaler = MinMaxScaler()
-    X_scaled = scaler.fit_transform(X)
+# Create cleaned dataframe
+df_cleaned = pd.DataFrame(X_scaled, columns=X.columns)
+df_cleaned.insert(0, 'diagnosis', y)
 
-    df_cleaned = pd.DataFrame(X_scaled, columns=X.columns)
-    df_cleaned.insert(0, 'diagnosis', y)
+# Split into train and validation sets
+train_df, valid_df = train_test_split(
+    df_cleaned, test_size=0.2, random_state=42
+)
 
-    train_df, valid_df = train_test_split(
-        df_cleaned, test_size=0.2, random_state=42
-    )
+# Save datasets
+train_df.to_csv("data_train.csv", index=False)
+valid_df.to_csv("data_valid.csv", index=False)
 
-    train_df.to_csv("data_train.csv", index=False)
-    valid_df.to_csv("data_valid.csv", index=False)
-
-    print("✅ Données préparées et sauvegardées :")
-    print(" - data_train.csv")
-    print(" - data_valid.csv")
-else:
-    print("⚠️ Aucune colonne de diagnostic trouvée!")
-    print("Colonnes disponibles:", df.columns.tolist())
-    print("Veuillez vérifier le fichier data.csv et identifier manuellement la colonne représentant le diagnostic.")
+print("✅ Données préparées et sauvegardées :")
+print(" - data_train.csv")
+print(" - data_valid.csv")
