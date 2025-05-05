@@ -1,22 +1,25 @@
 import numpy as np
 
-#activation functions
+
+# activation functions
 def sigmoid(x):
     """Compute the sigmoid function."""
     return 1 / (1 + np.exp(-x))
+
 
 def sigmoid_derivative(x):
     """Compute the derivative of the sigmoid function."""
     return x * (1 - x)
 
+
 def reLU(x):
     """Compute the ReLU function."""
     return np.maximum(0, x)
 
+
 def reLU_derivative(x):
     """Compute the derivative of the ReLU function."""
     return np.where(x > 0, 1, 0)
-
 
 
 class NeuralNetwork:
@@ -25,7 +28,7 @@ class NeuralNetwork:
         self.layers = [input_size, hidden_size1, hidden_size2, output_size]
         self.weights = []
         self.biases = []
-        
+
         # Initialize weights and biases
         for i in range(len(self.layers) - 1):
             # He initialization for weights
@@ -39,7 +42,7 @@ class NeuralNetwork:
         activations = [X]
         zs = []
         a = X
-        
+
         for j in range(len(self.weights)):
             z = np.dot(a, self.weights[j]) + self.biases[j]
             zs.append(z)
@@ -48,6 +51,5 @@ class NeuralNetwork:
             else:
                 a = sigmoid(z)  # Sigmoid activation for output layer
             activations.append(a)
-            
-        return activations[-1]  # Return final layer output
 
+        return activations[-1]  # Return final layer output
