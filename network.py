@@ -21,10 +21,16 @@ def reLU_derivative(x):
     """Compute the derivative of the ReLU function."""
     return np.where(x > 0, 1, 0)
 
+def softmax(x):
+    """Compute the softmax function."""
+    e_x = np.exp(x - np.max(x, axis=1, keepdims=True))
+    return e_x / e_x.sum(axis=1, keepdims=True)
+
 
 class NeuralNetwork:
-    def __init__(self, input_size, hidden_size1, hidden_size2, output_size):
+    def __init__(self, input_size, hidden_size1, hidden_size2, output_size, random_seed=42):
         # Define network architecture
+        np.random.seed(random_seed)  # For reproducibility
         self.layers = [input_size, hidden_size1, hidden_size2, output_size]
         self.weights = []
         self.biases = []
