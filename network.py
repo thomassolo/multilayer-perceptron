@@ -55,7 +55,7 @@ class NeuralNetwork:
             if j < len(self.weights) - 1:
                 a = np.maximum(0, z)  # ReLU activation for hidden layers
             else:
-                a = sigmoid(z)  # Sigmoid activation for output layer
+                a = softmax(z)  # Softmax activation for output layer
             activations.append(a)
 
         return activations[-1]  # Return final layer output
