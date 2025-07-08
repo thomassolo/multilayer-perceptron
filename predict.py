@@ -83,7 +83,7 @@ def evaluate_model_detailed(Y_true, predictions, predicted_classes):
     }
 
 
-def display_predictions(predictions, predicted_classes, Y_true, num_examples=30):
+def display_predictions(predictions, predicted_classes, Y_true, num_examples=50):
     """Display sample predictions for visual inspection."""
     print(f"\nFirst {num_examples} predictions:")
     print("-" * 70)
@@ -136,7 +136,7 @@ def display_predictions(predictions, predicted_classes, Y_true, num_examples=30)
 def predict_and_evaluate_multiple_thresholds(model_filepath="model_weights.npy", 
                                            data_filepath="data_valid.csv",
                                            thresholds=[0.3, 0.4, 0.5, 0.6, 0.7],
-                                           display_samples=30):
+                                           display_samples=50):
     """Test multiple thresholds to find optimal one."""
     print("Loading model...")
     weights, biases = load_model(model_filepath)
@@ -193,7 +193,7 @@ def predict_and_evaluate_multiple_thresholds(model_filepath="model_weights.npy",
 def predict_and_evaluate(model_filepath="model_weights.npy", 
                         data_filepath="data_valid.csv",
                         threshold=0.4,  # Lowered for better cancer detection
-                        display_samples=30):
+                        display_samples=50):
     """Main prediction function with improved cancer detection."""
     print("Loading model...")
     weights, biases = load_model(model_filepath)
@@ -229,9 +229,6 @@ def predict_and_evaluate(model_filepath="model_weights.npy",
     if display_samples > 0:
         display_predictions(predictions, predicted_classes, Y, display_samples)
     
-    # Recommendations
-    print("\n" + "="*60)
-    print("💡 RECOMMENDATIONS:")
     if metrics['sensitivity'] < 0.8:
         print("⚠️  Low sensitivity! Consider:")
         print("   - Lower threshold (try 0.3)")

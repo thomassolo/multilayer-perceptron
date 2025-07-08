@@ -28,10 +28,10 @@ def softmax(x):
 
 
 class NeuralNetwork:
-    def __init__(self, input_size, hidden_size1, hidden_size2, output_size, random_seed=42):
+    def __init__(self, input_size, hidden_sizes, output_size, random_seed=42):
         # Define network architecture
         np.random.seed(random_seed)  # For reproducibility
-        self.layers = [input_size, hidden_size1, hidden_size2, output_size]
+        self.layers = [input_size] + list(hidden_sizes) + [output_size]
         self.weights = []
         self.biases = []
 

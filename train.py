@@ -131,15 +131,38 @@ def train_epoch_improved(model, X_train, y_train, learning_rate, class_weight=2.
 
         # Backward pass with weighting
         backward_pass_weighted(model, activations, y, learning_rate, class_weight)
+    
+    # Calculate final training predictions and accuracy
+    y_pred_train = model.forward(X_train)
+    
+    # Calculate accuracy
+    if y_pred_train.shape[1] > 1:  # Softmax output
+        y_pred_classes = np.argmax(y_pred_train, axis=1)
+        y_true_classes = y_train.flatten().astype(int)
+    else:  # Sigmoid output
+        y_pred_classes = (y_pred_train > 0.5).flatten().astype(int)
+        y_true_classes = y_train.flatten().astype(int)
+    
+    train_accuracy = np.mean(y_pred_classes == y_true_classes)
 
-    return epoch_loss / X_train.shape[0]
+    return epoch_loss / X_train.shape[0], train_accuracy
 
 
 def validate_model(model, X_valid, y_valid):
-    """Validate the model and return validation loss."""
+    """Validate the model and return validation loss and accuracy."""
     y_pred_valid = model.forward(X_valid)
     val_loss = log_loss_custom(y_valid, y_pred_valid)
-    return val_loss
+    
+    # Calculate accuracy
+    if y_pred_valid.shape[1] > 1:  # Softmax output (multiple classes)
+        y_pred_classes = np.argmax(y_pred_valid, axis=1)
+        y_true_classes = y_valid.flatten().astype(int)
+    else:  # Sigmoid output (binary)
+        y_pred_classes = (y_pred_valid > 0.5).flatten().astype(int)
+        y_true_classes = y_valid.flatten().astype(int)
+    
+    accuracy = np.mean(y_pred_classes == y_true_classes)
+    return val_loss, accuracy
 
 class EarlyStopping:
     """
@@ -287,7 +310,7 @@ def train_model_improved(input_dim=None, hidden_dims=[32, 16], output_dim=2,
         input_dim = X_train.shape[1]
     
     # Initialize the neural network
-    model = NeuralNetwork(input_dim, *hidden_dims, output_dim, random_seed=random_seed)
+    model = NeuralNetwork(input_dim, hidden_dims, output_dim, random_seed=random_seed)
     
     # Initialize early stopping
     early_stopper = None
@@ -296,8 +319,11 @@ def train_model_improved(input_dim=None, hidden_dims=[32, 16], output_dim=2,
             early_stopping_config = {}
         early_stopper = EarlyStopping(**early_stopping_config)
     
+    # Lists to track metrics
     train_losses = []
     valid_losses = []
+    train_accuracies = []
+    valid_accuracies = []
     
     print(f"🚀 Starting {'IMPROVED' if use_early_stopping else 'STANDARD'} training for {epochs} epochs...")
     print(f"📋 Network: {input_dim} → {hidden_dims[0]} → {hidden_dims[1]} → {output_dim}")
@@ -315,16 +341,20 @@ def train_model_improved(input_dim=None, hidden_dims=[32, 16], output_dim=2,
     
     for epoch in range(epochs):
         # Train for one epoch with class weighting
-        avg_train_loss = train_epoch_improved(model, X_train, y_train, learning_rate, class_weight)
+        avg_train_loss, train_acc = train_epoch_improved(model, X_train, y_train, learning_rate, class_weight)
         train_losses.append(avg_train_loss)
+        train_accuracies.append(train_acc)
         
         # Validate
-        val_loss = validate_model(model, X_valid, y_valid)
+        val_loss, val_acc = validate_model(model, X_valid, y_valid)
         valid_losses.append(val_loss)
+        valid_accuracies.append(val_acc)
         
         # Check for early stopping
         if use_early_stopping and early_stopper is not None:
-            print(f"epoch {epoch+1:3d}/{epochs} - loss: {avg_train_loss:.6f} - val_loss: {val_loss:.6f} - improvement: {early_stopper.best_val_loss - val_loss:.8f}")
+            print(f"epoch {epoch+1:3d}/{epochs} - loss: {avg_train_loss:.6f} - val_loss: {val_loss:.6f} - "
+                  f"acc: {train_acc:.2%} - val_acc: {val_acc:.2%} - "
+                  f"improvement: {early_stopper.best_val_loss - val_loss:.8f}")
             
             if early_stopper.check_stopping(epoch, val_loss, model):
                 print(early_stopper.get_stop_message(epoch))
@@ -332,7 +362,8 @@ def train_model_improved(input_dim=None, hidden_dims=[32, 16], output_dim=2,
         else:
             # Sans early stopping - affichage simple
             if epoch % 10 == 0 or epoch < 10:
-                print(f"epoch {epoch+1:3d}/{epochs} - loss: {avg_train_loss:.6f} - val_loss: {val_loss:.6f}")
+                print(f"epoch {epoch+1:3d}/{epochs} - loss: {avg_train_loss:.6f} - val_loss: {val_loss:.6f} - "
+                      f"acc: {train_acc:.2%} - val_acc: {val_acc:.2%}")
     
     # Load best model if early stopping was used
     if use_early_stopping and early_stopper is not None:
@@ -347,24 +378,43 @@ def train_model_improved(input_dim=None, hidden_dims=[32, 16], output_dim=2,
     # Save final model
     np.save("model_weights.npy", {"weights": model.weights, "biases": model.biases})
     
-    # Plot learning curve
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label="Train Loss", linewidth=2)
-    plt.plot(valid_losses, label="Validation Loss", linewidth=2)
+    # Plot learning curves - Loss
+    plt.figure(figsize=(12, 10))
+    
+    # Subplot 1: Loss
+    plt.subplot(2, 1, 1)
+    plt.plot(train_losses, label="Train Loss", linewidth=2, color='#FF5733')
+    plt.plot(valid_losses, label="Validation Loss", linewidth=2, color='#33B5FF')
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.legend()
-    plt.title(f"Learning Curve ({'Early Stopping' if use_early_stopping else 'Full Training'})")
+    plt.title(f"Learning Curves - Loss ({'Early Stopping' if use_early_stopping else 'Full Training'})")
     plt.grid(True, alpha=0.3)
-    plt.savefig("improved_loss_curve.png")
+    
+    # Subplot 2: Accuracy
+    plt.subplot(2, 1, 2)
+    plt.plot(train_accuracies, label="Train Accuracy", linewidth=2, color='#28B463')
+    plt.plot(valid_accuracies, label="Validation Accuracy", linewidth=2, color='#7D3C98')
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.ylim(0.5, 1.01)  # Start from 0.5 for better visibility
+    plt.legend()
+    plt.title(f"Learning Curves - Accuracy ({'Early Stopping' if use_early_stopping else 'Full Training'})")
+    plt.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig("loss-accuracy-curves.png")
     plt.show()
     
     print(f"\n✅ Training completed!")
-    print(f"📊 Final training loss: {train_losses[-1]:.4f}")
-    print(f"📈 Final validation loss: {valid_losses[-1]:.4f}")
+    print(f"📊 Final metrics:")
+    print(f"   - Training loss: {train_losses[-1]:.4f}")
+    print(f"   - Validation loss: {valid_losses[-1]:.4f}")
+    print(f"   - Training accuracy: {train_accuracies[-1]:.2%}")
+    print(f"   - Validation accuracy: {valid_accuracies[-1]:.2%}")
     print("💾 Model saved as 'model_weights.npy'")
     
-    return model, train_losses, valid_losses
+    return model, train_losses, valid_losses, train_accuracies, valid_accuracies
 
 
 # Fonctions de convenance pour utilisation directe
@@ -406,20 +456,31 @@ def main():
     
     choice = input("Votre choix (1-3): ").strip()
     
+    # Demander à l'utilisateur la liste des hidden layers
+    hidden_layers_input = input("Entrez la liste des tailles de hidden layers séparées par des virgules (ex: 64,32,16) [défaut: 32,16]: ").strip()
+    if hidden_layers_input:
+        hidden_dims = [int(x) for x in hidden_layers_input.split(",") if x.strip().isdigit()]
+        if not hidden_dims:
+            hidden_dims = [32, 16]
+    else:
+        hidden_dims = [32, 16]
+
     if choice == "1":
         # Mode avec early stopping par défaut
         print("🎯 Mode: Early Stopping activé (paramètres par défaut)")
-        model, train_losses, valid_losses = train_model_improved(
-            use_early_stopping=True
+        model, train_losses, valid_losses, train_accs, valid_accs = train_model_improved(
+            use_early_stopping=True,
+            hidden_dims=hidden_dims
         )
         
     elif choice == "2":
         # Mode sans early stopping
         print("⏳ Mode: Entraînement complet (sans early stopping)")
         epochs = int(input("Nombre d'époques (défaut 100): ") or "100")
-        model, train_losses, valid_losses = train_model_improved(
+        model, train_losses, valid_losses, train_accs, valid_accs = train_model_improved(
             epochs=epochs,
-            use_early_stopping=False
+            use_early_stopping=False,
+            hidden_dims=hidden_dims
         )
         
     elif choice == "3":
@@ -441,15 +502,16 @@ def main():
             "absolute_max_epochs": max_epochs
         }
         
-        model, train_losses, valid_losses = train_model_improved(
+        model, train_losses, valid_losses, train_accs, valid_accs = train_model_improved(
             use_early_stopping=True,
-            early_stopping_config=early_stopping_config
+            early_stopping_config=early_stopping_config,
+            hidden_dims=hidden_dims
         )
         
     else:
         print("❌ Choix invalide, utilisation du mode par défaut")
-        model, train_losses, valid_losses = train_model_improved()
-    
+        model, train_losses, valid_losses, train_accs, valid_accs = train_model_improved(hidden_dims=hidden_dims)
+
     print("\n" + "="*70)
     print("🎉 Entraînement terminé avec succès!")
     print(f"📊 Loss finale d'entraînement: {train_losses[-1]:.6f}")
